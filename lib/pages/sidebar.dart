@@ -22,22 +22,22 @@ class Sidebar extends StatelessWidget {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.home),
-            title: const Text('Home'),
+            leading: const Icon(Icons.person_add),
+            title: const Text('Add Person'),
             onTap: () {
               Navigator.pushNamed(context, '/home'); // Change route
             },
           ),
           ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Profile'),
+            leading: const Icon(Icons.camera_alt),
+            title: const Text('Scan Face'),
             onTap: () {
               Navigator.pushNamed(context, '/profile'); // Change route
             },
           ),
           ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
+            leading: const Icon(Icons.view_list),
+            title: const Text('List of Persons'),
             onTap: () {
               // Handle logout logic
               Navigator.pop(context);
