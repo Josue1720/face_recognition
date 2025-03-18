@@ -197,7 +197,6 @@ class _AddPersonState extends State<AddPerson> {
               if (capturedImagePath != null)
                 ElevatedButton(
                   onPressed: _submitForm,
-                  child: const Text("Register"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
@@ -205,6 +204,7 @@ class _AddPersonState extends State<AddPerson> {
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                   ),
+                  child: const Text("Register"),
                 ),
             ],
           ),
