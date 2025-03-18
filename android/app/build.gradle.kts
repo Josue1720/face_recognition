@@ -1,14 +1,15 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services") // ✅ Required for Firebase
 }
 
 android {
     namespace = "com.example.face_recognition"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"  // ✅ Manually set the required NDK version
+    compileSdk = 35 // ✅ Set to a fixed version if needed
+
+    ndkVersion = "27.0.12077973"  // ✅ Required NDK version
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -21,10 +22,10 @@ android {
 
     defaultConfig {
         applicationId = "com.example.face_recognition"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdk = 23 // ✅ Manually set the minSdk version
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
     }
 
     buildTypes {
@@ -34,7 +35,14 @@ android {
     }
 }
 
-
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:33.10.0")) // ✅ Ensures Firebase dependencies use the same version
+
+    // ✅ Add Firebase SDKs as needed (Example: Firebase Auth & Firestore)
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
 }
