@@ -1,7 +1,9 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'dart:io'; // Import the dart:io package
-import 'dart:math' as math;
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'dart:convert';
+
 class AddPerson extends StatefulWidget {
   const AddPerson({super.key});
 
@@ -17,7 +19,7 @@ class _AddPersonState extends State<AddPerson> {
   CameraController? _cameraController;
   List<CameraDescription>? cameras;
   String? capturedImagePath;
-  int selectedCameraIndex = 0; // Store selected camera index (0 = back, 1 = front)
+  int selectedCameraIndex = 0;
 
   @override
   void initState() {
@@ -30,7 +32,7 @@ class _AddPersonState extends State<AddPerson> {
       cameras = await availableCameras();
       if (cameras != null && cameras!.isNotEmpty) {
         _cameraController = CameraController(
-          cameras![cameraIndex], // Select camera by index
+          cameras![cameraIndex],
           ResolutionPreset.high,
         );
         await _cameraController!.initialize();
@@ -45,8 +47,7 @@ class _AddPersonState extends State<AddPerson> {
 
   Future<void> _switchCamera() async {
     if (cameras == null || cameras!.isEmpty) return;
-
-    selectedCameraIndex = (selectedCameraIndex + 1) % cameras!.length; // Toggle between cameras
+    selectedCameraIndex = (selectedCameraIndex + 1) % cameras!.length;
     await _initializeCamera(selectedCameraIndex);
   }
 
@@ -66,7 +67,7 @@ class _AddPersonState extends State<AddPerson> {
     }
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       if (capturedImagePath == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -77,13 +78,38 @@ class _AddPersonState extends State<AddPerson> {
 
       String fullName = fullNameController.text;
       String employeeId = employeeIdController.text;
+      File imageFile = File(capturedImagePath!);
 
-      print("Registered: $fullName ($employeeId)");
-      print("Image Path: $capturedImagePath");
+      try {
+        var request = http.MultipartRequest(
+          'POST',
+          Uri.parse("http://localhost:5000/api/register"),
+        );
+        request.fields['fullName'] = fullName;
+        request.fields['employeeId'] = employeeId;
+        request.files.add(await http.MultipartFile.fromPath(
+          'image',
+          imageFile.path,
+        ));
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Registration Successful")),
-      );
+        var response = await request.send();
+        if (response.statusCode == 200) {
+          print("Registration successful");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Registration Successful")),
+          );
+        } else {
+          print("Error: ${response.reasonPhrase}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: ${response.reasonPhrase}")),
+          );
+        }
+      } catch (e) {
+        print("Error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
     }
   }
 
@@ -106,28 +132,9 @@ class _AddPersonState extends State<AddPerson> {
           child: Column(
             children: [
               if (_cameraController != null && _cameraController!.value.isInitialized && capturedImagePath == null)
-                Stack(
-                  children: [
-                    SizedBox(
-                      height: 500,
-                      child: CameraPreview(_cameraController!),
-                    ),
-                    Positioned.fill(
-                      child: Align(
-                        alignment: Alignment.center,
-                        child: Container(
-                          width: 150,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(100),
-                            border: Border.all(color: Colors.white, width: 2),
-                            color: Colors.transparent,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                SizedBox(
+                  height: 500,
+                  child: CameraPreview(_cameraController!),
                 )
               else if (capturedImagePath != null)
                 Column(
@@ -160,49 +167,27 @@ class _AddPersonState extends State<AddPerson> {
               else
                 const Text("Camera not available"),
               const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (capturedImagePath == null)
+              if (capturedImagePath == null)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                     ElevatedButton.icon(
                       onPressed: _captureImage,
                       icon: const Icon(Icons.camera_alt),
                       label: const Text("Capture Face"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                      ),
                     ),
-                  const SizedBox(width: 10),
-                  if (capturedImagePath == null)
+                    const SizedBox(width: 10),
                     ElevatedButton.icon(
                       onPressed: _switchCamera,
                       icon: const Icon(Icons.switch_camera),
                       label: const Text("Switch Camera"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                      ),
                     ),
-                ],
-              ),
+                  ],
+                ),
               const SizedBox(height: 10),
               if (capturedImagePath != null)
                 ElevatedButton(
                   onPressed: _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
                   child: const Text("Register"),
                 ),
             ],
@@ -217,20 +202,10 @@ class _AddPersonState extends State<AddPerson> {
     required String label,
     String? Function(String?)? validator,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.8),
-        ),
-        validator: validator,
-      ),
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(labelText: label, border: OutlineInputBorder()),
+      validator: validator,
     );
   }
 }
