@@ -1,7 +1,11 @@
+import 'package:face_recognition/config/mongodb.dart';
 import 'package:flutter/material.dart';
 import '/pages/Homepage.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await MongoDatabase.connect();
+
   runApp(const MyApp());
 }
 
