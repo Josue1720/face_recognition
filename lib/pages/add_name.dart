@@ -1,14 +1,18 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:face_recognition/config/mongoservice.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
 import 'dart:io'; // Import the dart:io package
-class AddPerson extends StatefulWidget {
-  const AddPerson({super.key});
+import '/pages/display.dart';
+
+class TestAdd extends StatefulWidget {
+  const TestAdd({super.key});
 
   @override
-  State<AddPerson> createState() => _AddPersonState();
+  State<TestAdd> createState() => _TestAddState();
 }
 
-class _AddPersonState extends State<AddPerson> {
+class _TestAddState extends State<TestAdd> {
   final _formKey = GlobalKey<FormState>();
   TextEditingController fullNameController = TextEditingController();
   TextEditingController employeeIdController = TextEditingController();
@@ -31,6 +35,7 @@ class _AddPersonState extends State<AddPerson> {
         _cameraController = CameraController(
           cameras![cameraIndex], // Select camera by index
           ResolutionPreset.high,
+          imageFormatGroup: ImageFormatGroup.yuv420,
         );
         await _cameraController!.initialize();
         setState(() {});
@@ -65,7 +70,7 @@ class _AddPersonState extends State<AddPerson> {
     }
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       if (capturedImagePath == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -77,12 +82,65 @@ class _AddPersonState extends State<AddPerson> {
       String fullName = fullNameController.text;
       String employeeId = employeeIdController.text;
 
-      print("Registered: $fullName ($employeeId)");
-      print("Image Path: $capturedImagePath");
+      try {
+        // Detect face and extract embeddings
+        final inputImage = InputImage.fromFilePath(capturedImagePath!);
+       final faceDetector = GoogleMlKit.vision.faceDetector(
+  FaceDetectorOptions(
+    enableLandmarks: true,  // Enable landmark detection
+    enableContours: true,   // Enable facial contour detection
+    performanceMode: FaceDetectorMode.accurate, // Use accurate mode
+  ),
+);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Registration Successful")),
-      );
+        final faces = await faceDetector.processImage(inputImage);
+
+        if (faces.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("No face detected in the image")),
+          );
+          return;
+        }
+
+        final face = faces.first;
+       final faceEmbeddings = face.landmarks.entries
+    .where((entry) => entry.value != null) // Filter out null landmarks
+    .map((entry) => {
+      'type': entry.key.toString(),
+      'x': entry.value!.position.x,  // Use `!` to ensure non-null values
+      'y': entry.value!.position.y
+    }).toList();
+
+
+        // Save registration details and embeddings to MongoDB
+        await MongoDatabase.insertData({
+          'fullName': fullName,
+          'employeeId': employeeId,
+          'imagePath': capturedImagePath,
+          'faceEmbeddings': faceEmbeddings,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+
+        print("Registered: $fullName ($employeeId)");
+        print("Image Path: $capturedImagePath");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Registration Successful")),
+        );
+
+        // Delay navigation until after the SnackBar shows
+        Future.delayed(const Duration(seconds: 2), () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const Display()),
+          );
+        });
+      } catch (e) {
+        print("Error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
     }
   }
 

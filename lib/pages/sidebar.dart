@@ -1,4 +1,5 @@
-import 'package:face_recognition/pages/add_person.dart';
+import 'package:face_recognition/pages/add_name.dart';
+import 'package:face_recognition/pages/display.dart';
 import 'package:flutter/material.dart';
 
 class Sidebar extends StatelessWidget {
@@ -28,7 +29,18 @@ class Sidebar extends StatelessWidget {
             onTap: () {
              Navigator.push(
   context,
-  MaterialPageRoute(builder: (context) => AddPerson()),
+  MaterialPageRoute(builder: (context) => TestAdd()),
+);
+
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_2_sharp),
+            title: const Text('Add Name'),
+            onTap: () {
+             Navigator.push(
+  context,
+  MaterialPageRoute(builder: (context) => Display()),
 );
 
             },
