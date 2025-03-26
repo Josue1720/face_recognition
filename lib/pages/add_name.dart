@@ -154,8 +154,10 @@ class _TestAddState extends State<TestAdd> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Face Registration"),
-        backgroundColor: Colors.blueAccent,
+        title: const Text("Face Registration" , style: TextStyle(color: Colors.white),),
+        backgroundColor: const Color(0xFF3D9260),
+         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

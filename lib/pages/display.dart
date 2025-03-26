@@ -86,7 +86,8 @@ class _DisplayState extends State<Display> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('MongoDB Employees')),
+      appBar: AppBar(title: const Text('Registered Employees',style: TextStyle(color: Colors.white),),  backgroundColor: const Color(0xFF3D9260),
+      iconTheme: IconThemeData(color: Colors.white),),
       body: Column(
         children: [
           // Search Bar
@@ -112,6 +113,10 @@ class _DisplayState extends State<Display> {
                       return Card(
                         margin: const EdgeInsets.all(8),
                         child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.green,
+                            child: Icon(Icons.person, color: Colors.white),
+                          ),
                           title: Text("${employee['fullName']}"),
                           subtitle: Text('Employee ID: ${employee['employeeId'] ?? 'Unknown'}'),
                           onTap: () => _showEmployeeDetails(employee),
