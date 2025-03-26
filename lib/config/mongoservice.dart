@@ -12,7 +12,7 @@ class MongoDatabase {
 
       var collection = db.collection(EMPLOYEE_COLLECTION);
       var data = await collection.find().toList();
-
+    /*   print("Data: $data"); */
       await db.close();
       return data;
     } catch (e) {

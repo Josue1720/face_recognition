@@ -27,7 +27,7 @@ class Sidebar extends StatelessWidget {
             leading: const Icon(Icons.person_add),
             title: const Text('Add Person'),
             onTap: () {
-             Navigator.push(
+             Navigator.pushReplacement(
   context,
   MaterialPageRoute(builder: (context) => TestAdd()),
 );
@@ -38,7 +38,7 @@ class Sidebar extends StatelessWidget {
             leading: const Icon(Icons.person_2_sharp),
             title: const Text('Add Name'),
             onTap: () {
-             Navigator.push(
+             Navigator.pushReplacement(
   context,
   MaterialPageRoute(builder: (context) => Display()),
 );
@@ -56,8 +56,10 @@ class Sidebar extends StatelessWidget {
             leading: const Icon(Icons.view_list),
             title: const Text('List of Persons'),
             onTap: () {
-              // Handle logout logic
-              Navigator.pop(context);
+             Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(builder: (context) => Display()),
+);
             },
           ),
         ],

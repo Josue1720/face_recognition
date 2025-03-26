@@ -130,7 +130,7 @@ class _TestAddState extends State<TestAdd> {
 
         // Delay navigation until after the SnackBar shows
         Future.delayed(const Duration(seconds: 2), () {
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const Display()),
           );
