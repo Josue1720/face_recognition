@@ -140,12 +140,7 @@ List<Map<String, double>> _extractEmbeddings(Face face, Size imageSize) {
       },
   ];
 }
-
-
-
-
-
-  /// ✅ **Convert Embeddings to Landmarks**
+  //Convert Embeddings to Landmarks
   List<Map<String, double>> _convertEmbeddingsToLandmarks(List<double> embeddings) {
     return List.generate(embeddings.length, (index) {
       return {'x': embeddings[index], 'y': embeddings[index]};
@@ -164,7 +159,7 @@ Future<void> _compareFace(List<Map<String, double>> detectedLandmarks) async {
 
     bool matchFound = false;
     String matchedEmployeeName = "";
-    double threshold = 600.0;
+    double threshold = 5.0;
 
    double minDistance = double.infinity;
 String bestMatch = "❌ No Match Found";
@@ -180,7 +175,7 @@ for (var employee in storedEmployees) {
   double totalDistance = _calculateDistance(detectedLandmarks, storedEmbeddings);
   print("Distance for ${employee['fullName']}: $totalDistance");
 
-  // ✅ Update best match if this distance is the smallest
+  // Update best match if this distance is the smallest
   if (totalDistance < minDistance) {
     minDistance = totalDistance;
     bestMatch = employee['fullName'];
@@ -190,11 +185,11 @@ for (var employee in storedEmployees) {
 
 if (minDistance > threshold) {
   setState(() {
-    _resultMessage = "❌ No Match Found";
+    _resultMessage = "No Match Found";
   });
 } else {
   setState(() {
-    _resultMessage = "✅ Best Match: $bestMatch ($minDistance)";
+    _resultMessage = "Best Match: $bestMatch ($minDistance)";
   });
 }
 
