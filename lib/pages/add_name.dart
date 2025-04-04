@@ -2,9 +2,11 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:face_recognition/config/mongoservice.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
 import 'dart:io';
 import '/pages/display.dart';
+import '/config/facerecognitionservice.dart';
+import 'package:image/image.dart' as img;
+
 
 class TestAdd extends StatefulWidget {
   const TestAdd({super.key});
@@ -22,12 +24,41 @@ class _TestAddState extends State<TestAdd> {
   List<CameraDescription>? cameras;
   String? capturedImagePath;
   int selectedCameraIndex = 1; // Default to front camera
-
+  FaceRecognitionService faceRecognitionService = FaceRecognitionService();
+   
   @override
   void initState() {
     super.initState();
     _initializeCamera(selectedCameraIndex);
   }
+
+Future<File> resizeImage(File imageFile) async {
+  final bytes = await imageFile.readAsBytes();
+  img.Image? image = img.decodeImage(bytes);
+
+  if (image == null) {
+    throw Exception("Error decoding image");
+  }
+
+  // Ensure the image is in RGB format (removes alpha if present)
+  img.Image rgbImage = img.bakeOrientation(image);
+  rgbImage = img.copyResize(rgbImage, width: 112, height: 112);
+
+  // Ensure it's strictly RGB (drops alpha channel)
+  if (rgbImage.channels == 4) {
+    rgbImage = img.copyCrop(rgbImage, 0, 0, rgbImage.width, rgbImage.height);
+  }
+
+  // Save the resized image
+  final resizedFile = File(imageFile.path.replaceFirst('.jpg', '_resized.jpg'))
+    ..writeAsBytesSync(img.encodeJpg(rgbImage));
+
+  return resizedFile;
+}
+
+
+
+
 
   Future<void> _initializeCamera(int cameraIndex) async {
     try {
@@ -67,73 +98,92 @@ class _TestAddState extends State<TestAdd> {
     }
   }
 
-  Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (capturedImagePath == null) {
-      _showSnackBar("Please capture a face image");
+
+ Future<void> _submitForm() async {
+  if (!_formKey.currentState!.validate()) return;
+  if (capturedImagePath == null) {
+    _showSnackBar("Please capture a face image");
+    return;
+  }
+
+  try {
+    // Resize the captured image to 112x112 pixels
+    File resizedImageFile = await resizeImage(File(capturedImagePath!));
+
+    // Decode the resized image
+    final bytes = await resizedImageFile.readAsBytes();
+    img.Image? resizedImage = img.decodeImage(bytes);
+
+    if (resizedImage == null) {
+      throw Exception("Error decoding resized image");
+    }
+
+    // Convert image pixels to a normalized list of floats (RGB values between -1 and 1)
+    List<double> imagePixels = [];
+    for (int y = 0; y < resizedImage.height; y++) {
+      for (int x = 0; x < resizedImage.width; x++) {
+        int pixel = resizedImage.getPixel(x, y);
+        imagePixels.add(((pixel >> 16) & 0xFF) / 255.0); // Red channel
+        imagePixels.add(((pixel >> 8) & 0xFF) / 255.0);  // Green channel
+        imagePixels.add((pixel & 0xFF) / 255.0);         // Blue channel
+      }
+    }
+
+    // Debugging: Ensure the length of imagePixels is correct
+    print("Image Pixel Length: ${imagePixels.length}");
+    if (imagePixels.length != 112 * 112 * 3) {
+      throw Exception("Image pixel length mismatch. Expected: ${112 * 112 * 3}, but got: ${imagePixels.length}");
+    }
+
+    // Generate embeddings using the flat list of image pixels
+    final faceEmbedding = faceRecognitionService.getFaceEmbeddingFromPixels(imagePixels);
+
+    print("Face Embedding: $faceEmbedding");
+
+    // Parse employee ID
+    int? employeeId;
+    try {
+      employeeId = int.parse(employeeIdController.text);
+    } catch (e) {
+      _showSnackBar("Invalid Employee ID. Please enter a number.");
       return;
     }
 
-    try {
-      final inputImage = InputImage.fromFilePath(capturedImagePath!);
-      final faceDetector = GoogleMlKit.vision.faceDetector(
-        FaceDetectorOptions(
-          enableLandmarks: true,
-          enableContours: true,
-          performanceMode: FaceDetectorMode.accurate,
-        ),
-      );
+    // Store the embeddings and employee details in MongoDB
+    await MongoDatabase.insertData({
+      'fullName': fullNameController.text,
+      'employeeId': employeeId,
+      'imagePath': resizedImageFile.path,
+      'faceEmbedding': faceEmbedding, // Store 192-d face embedding
+      'timestamp': DateTime.now().toIso8601String(),
+    });
 
-      final faces = await faceDetector.processImage(inputImage);
-
-      if (faces.isEmpty) {
-        _showSnackBar("No face detected. Please retake.");
-        return;
-      }
-
-      final face = faces.first;
- final faceEmbeddings = face.landmarks.entries
-    .where((entry) => entry.value != null)
-    .map((entry) => {
-          'type': entry.key.toString(),
-          'x': entry.value!.position.x,
-          'y': entry.value!.position.y,
-        })
-    .toList();
-
-await MongoDatabase.insertData({
-  'fullName': fullNameController.text,
-  'employeeId': employeeIdController.text,
-  'imagePath': capturedImagePath,
-  'faceEmbeddings': faceEmbeddings, // Store raw landmarks
-  'timestamp': DateTime.now().toIso8601String(),
-});
-
-      _showSnackBar("Registration Successful");
-
-      Future.delayed(const Duration(seconds: 2), () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const Display()),
-        );
-      });
-    } catch (e) {
-      _showSnackBar("Error: $e");
-    }
+    // Show success message and navigate to Display page
+    _showSnackBar("Registration Successful");
+    Future.delayed(const Duration(seconds: 2), () {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Display()));
+    });
+  } catch (e) {
+    // Handle errors
+    _showSnackBar("Error: $e");
+    print("Error: $e");
   }
-
+}
+ 
+ 
+ 
+ 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
-  }
-
+  } 
   @override
   void dispose() {
     _cameraController?.dispose();
     fullNameController.dispose();
     employeeIdController.dispose();
-    super.dispose();
+    super.dispose();  
   }
 
   @override

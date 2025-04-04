@@ -57,7 +57,22 @@ class MongoDatabase {
       return [];
     }
   }
+static Future<void> addMatchedRecord(Map<String, dynamic> record) async {
+    try {
+      // Assuming you have a MongoDB collection instance named 'matchedRecordsCollection'
+      var matchedRecordsCollection = await getMatchedRecordsCollection();
+      await matchedRecordsCollection.insertOne(record);
+      print('Record added successfully: $record');
+    } catch (e) {
+      print('Error adding matched record: $e');
+      rethrow;
+    }
+  }
 
+  static Future<dynamic> getMatchedRecordsCollection() async {
+    // Replace with your logic to get the MongoDB collection
+    throw UnimplementedError('Define this method to return the collection instance.');
+  }
   // Compare embeddings
   static bool compareEmbeddings(List<dynamic> detected, List<dynamic> stored) {
     if (detected.length != stored.length) return false;

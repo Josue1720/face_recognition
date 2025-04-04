@@ -1,11 +1,10 @@
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:face_camera/face_camera.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:math' as math;
-import'/config/mongoservice.dart';
+import 'dart:io'; // Import for File class
+import '/config/mongoservice.dart';
+import '/config/facerecognitionservice.dart'; // Import FaceRecognitionService for FaceNet
 
 class ScanFaceScreen extends StatefulWidget {
   const ScanFaceScreen({super.key});
@@ -20,13 +19,14 @@ class _ScanFaceScreenState extends State<ScanFaceScreen> {
   bool _faceDetected = false;
   String _resultMessage = "Center your face in the frame";
 
+  final FaceRecognitionService faceRecognitionService = FaceRecognitionService(); // Initialize FaceRecognitionService
+
   @override
   void initState() {
     super.initState();
     _requestCameraPermission();
   }
 
-  /// ✅ **Request Camera Permission First**
   Future<void> _requestCameraPermission() async {
     var status = await Permission.camera.request();
     if (status.isGranted) {
@@ -35,23 +35,20 @@ class _ScanFaceScreenState extends State<ScanFaceScreen> {
       setState(() => _resultMessage = "Camera permission denied!");
     }
   }
-double _calculateDistance(List<Map<String, double>> detected, List<Map<String, double>> stored) {
-  int minLength = min(detected.length, stored.length);  // Ensure same length
 
-  if (minLength == 0) return double.infinity; // Avoid division by zero
+  // Calculate Euclidean Distance between two face embeddings
+  double _calculateEuclideanDistance(List<double> embedding1, List<double> embedding2) {
+    if (embedding1.length != embedding2.length) {
+      return double.infinity; // Return max distance if sizes don't match
+    }
 
-  double totalDistance = 0.0;
-  for (int i = 0; i < minLength; i++) {
-    double dx = detected[i]['x']! - stored[i]['x']!;
-    double dy = detected[i]['y']! - stored[i]['y']!;
-    totalDistance += (dx * dx) + (dy * dy);
+    double distance = 0.0;
+    for (int i = 0; i < embedding1.length; i++) {
+      distance += (embedding1[i] - embedding2[i]) * (embedding1[i] - embedding2[i]);
+    }
+    return sqrt(distance); // Return the Euclidean distance
   }
-  
-  return sqrt(totalDistance / minLength);  // Normalize distance
-}
 
-
-  /// ✅ **Initialize Camera Properly**
   Future<void> _initializeCamera() async {
     try {
       await FaceCamera.initialize();
@@ -61,46 +58,26 @@ double _calculateDistance(List<Map<String, double>> detected, List<Map<String, d
           autoCapture: false,
           defaultCameraLens: CameraLens.front,
           onFaceDetected: (Face? face) {
-  if (face != null) {
-    setState(() {
-      _faceDetected = true;
-      _resultMessage = "Face Detected! Processing...";
-    });
+            if (face != null) {
+              setState(() {
+                _faceDetected = true;
+                _resultMessage = "Face Detected! Processing...";
+              });
 
-    // Extract facial landmarks (real embeddings)
-    List<Map<String, double>> extractedLandmarks = _extractEmbeddings(
-      face,
-      Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
-    );
-
-    // Compare with stored embeddings
-    _compareFace(extractedLandmarks);
-  } else {
-    _handleNoFaceDetected();
-  }
-}
-,
-          onCapture: (file) async {
-  if (file == null) return;
-
-  final inputImage = InputImage.fromFilePath(file.path);
-  final faceDetector = GoogleMlKit.vision.faceDetector(
-    FaceDetectorOptions(enableLandmarks: true, enableContours: true),
-  );
-
-  final faces = await faceDetector.processImage(inputImage);
-
-  if (faces.isEmpty) {
-    setState(() => _resultMessage = "No Face Detected. Try Again.");
-    return;
-  }
-
-  final face = faces.first;
-  List<Map<String, double>> detectedLandmarks = _extractEmbeddings(face, Size(1.0, 1.0)); // Replace with actual image size if available
-
-  await _compareFace(detectedLandmarks);
-},
-
+              // Capture the face and process it
+              _processDetectedFace();
+            } else {
+              _handleNoFaceDetected();
+            }
+          },
+          onCapture: (file) {
+            // Handle the captured file
+            if (file != null) {
+              print("Captured file path: ${file.path}");
+            } else {
+              print("No file captured.");
+            }
+          },
         );
       });
     } catch (e) {
@@ -111,135 +88,145 @@ double _calculateDistance(List<Map<String, double>> detected, List<Map<String, d
     }
   }
 
-List<Map<String, double>> _extractEmbeddings(Face face, Size imageSize) {
-  return [
-    if (face.landmarks[FaceLandmarkType.leftEye] != null)
-      {
-        'x': face.landmarks[FaceLandmarkType.leftEye]!.position.x / imageSize.width,
-        'y': face.landmarks[FaceLandmarkType.leftEye]!.position.y / imageSize.height
-      },
-    if (face.landmarks[FaceLandmarkType.rightEye] != null)
-      {
-        'x': face.landmarks[FaceLandmarkType.rightEye]!.position.x / imageSize.width,
-        'y': face.landmarks[FaceLandmarkType.rightEye]!.position.y / imageSize.height
-      },
-    if (face.landmarks[FaceLandmarkType.noseBase] != null)
-      {
-        'x': face.landmarks[FaceLandmarkType.noseBase]!.position.x / imageSize.width,
-        'y': face.landmarks[FaceLandmarkType.noseBase]!.position.y / imageSize.height
-      },
-    if (face.landmarks[FaceLandmarkType.leftMouth] != null)
-      {
-        'x': face.landmarks[FaceLandmarkType.leftMouth]!.position.x / imageSize.width,
-        'y': face.landmarks[FaceLandmarkType.leftMouth]!.position.y / imageSize.height
-      },
-    if (face.landmarks[FaceLandmarkType.rightMouth] != null)
-      {
-        'x': face.landmarks[FaceLandmarkType.rightMouth]!.position.x / imageSize.width,
-        'y': face.landmarks[FaceLandmarkType.rightMouth]!.position.y / imageSize.height
-      },
-  ];
-}
-  //Convert Embeddings to Landmarks
-  List<Map<String, double>> _convertEmbeddingsToLandmarks(List<double> embeddings) {
-    return List.generate(embeddings.length, (index) {
-      return {'x': embeddings[index], 'y': embeddings[index]};
-    });
+  Future<void> _processDetectedFace() async {
+    try {
+      // Capture the image from the camera
+      final file = await _controller.takePicture();
+      if (file == null) {
+        setState(() => _resultMessage = "Error: No image captured");
+        return;
+      }
+
+      // Preprocess the image and extract embeddings using FaceNet
+      final faceEmbedding = faceRecognitionService.getFaceEmbedding(File(file.path));
+      if (faceEmbedding.isEmpty) {
+        setState(() => _resultMessage = "Error: Failed to extract face embedding");
+        return;
+      }
+
+      // Compare the embedding with stored data
+      await _compareFace(faceEmbedding);
+    } catch (e) {
+      setState(() => _resultMessage = "Error processing face: $e");
+      print("Error in _processDetectedFace: $e");
+    }
   }
 
-Future<void> _compareFace(List<Map<String, double>> detectedLandmarks) async {
-  try {
-    print("🔹 Captured Facial Landmarks: $detectedLandmarks");
 
+ /* Future<void> _compareFace(List<double> detectedEmbedding) async {
+  try {
+    print("🔹 Captured Face Embedding: $detectedEmbedding");
+
+    // Fetch stored employee data (embeddings) from the MongoDB
     List<Map<String, dynamic>>? storedEmployees = await MongoDatabase.getData();
     if (storedEmployees.isEmpty) {
       setState(() => _resultMessage = "No face data found in database.");
       return;
     }
 
-    bool matchFound = false;
-    String matchedEmployeeName = "";
-    double threshold = 5.0;
+    double threshold = 0.6; // Threshold for Euclidean distance
+    double minDistance = double.infinity;
+    String bestMatch = "❌ No Match Found";
 
-   double minDistance = double.infinity;
-String bestMatch = "❌ No Match Found";
+    for (var employee in storedEmployees) {
+      List<dynamic>? storedEmbeddingRaw = employee['faceEmbedding'];
+      if (storedEmbeddingRaw == null || storedEmbeddingRaw.isEmpty) continue;
 
-for (var employee in storedEmployees) {
-  List<dynamic>? storedEmbeddingsRaw = employee['faceEmbeddings'];
-  if (storedEmbeddingsRaw == null || storedEmbeddingsRaw.isEmpty) continue;
+      List<double> storedEmbedding = storedEmbeddingRaw.cast<double>();
 
-  List<Map<String, double>> storedEmbeddings = storedEmbeddingsRaw.map((e) {
-    return {'x': (e['x'] as num).toDouble(), 'y': (e['y'] as num).toDouble()};
-  }).toList();
+      // Compare the detected face with the stored face embedding
+      double distance = _calculateEuclideanDistance(detectedEmbedding, storedEmbedding);
 
-  double totalDistance = _calculateDistance(detectedLandmarks, storedEmbeddings);
-  print("Distance for ${employee['fullName']}: $totalDistance");
+      print("Distance for ${employee['fullName']}: $distance");
 
-  // Update best match if this distance is the smallest
-  if (totalDistance < minDistance) {
-    minDistance = totalDistance;
-    bestMatch = employee['fullName'];
-  }
-}
+      if (distance < minDistance) {
+        minDistance = distance;
+        bestMatch = employee['fullName'];
+      }
+    }
 
+    if (minDistance > threshold) {
+      setState(() {
+        _resultMessage = "No Match Found\nShortest Distance: ${minDistance.toStringAsFixed(4)}";
+      });
+    } else {
+      setState(() {
+        _resultMessage = "Best Match: $bestMatch\nDistance: ${minDistance.toStringAsFixed(4)}";
+      });
 
-if (minDistance > threshold) {
-  setState(() {
-    _resultMessage = "No Match Found";
-  });
-} else {
-  setState(() {
-    _resultMessage = "Best Match: $bestMatch ($minDistance)";
-  });
-}
-
-
-    setState(() {
-      _resultMessage = matchFound ? "Match Found: $matchedEmployeeName" : "No Match Found";
-      _faceDetected = matchFound;
-    });
+      // Log the match in the database
+      await _logMatchedFace(bestMatch);
+    }
   } catch (e) {
     setState(() => _resultMessage = "Error accessing database: $e");
+    print("Error in _compareFace: $e");
   }
-}
+} */
+Future<void> _compareFace(List<double> detectedEmbedding) async {
+  try {
+    print("🔹 Captured Face Embedding: $detectedEmbedding");
 
+    // Fetch stored employee data (embeddings) from the MongoDB
+    List<Map<String, dynamic>>? storedEmployees = await MongoDatabase.getData();
+    if (storedEmployees.isEmpty) {
+      setState(() => _resultMessage = "No face data found in database.");
+      return;
+    }
 
+    double minDistance = double.infinity;
+    String bestMatch = "Unknown";
+    double threshold = 0.8; // Define a threshold for valid matching
 
+    for (var employee in storedEmployees) {
+      List<dynamic>? storedEmbeddingRaw = employee['faceEmbedding'];
+      if (storedEmbeddingRaw == null || storedEmbeddingRaw.isEmpty) continue;
 
+      List<double> storedEmbedding = storedEmbeddingRaw.cast<double>();
 
+      // Compare the detected face with the stored face embedding
+      double distance = _calculateEuclideanDistance(detectedEmbedding, storedEmbedding);
 
-bool _compareEmbeddings(List<double> detected, List<double> stored) {
-  if (detected.length != stored.length) return false;
+      print("Distance for ${employee['fullName']}: $distance");
 
-  double distance = 0.0;
-  for (int i = 0; i < detected.length; i++) {
-    distance += pow(detected[i] - stored[i], 2);
-  }
-
-  print("🔍 Comparing Face Data:");
-  print("Detected Face: $detected");
-  print("Stored Face: $stored");
-  print("Calculated Distance: $distance");
-
-  return distance < 0.3; // Face matching threshold
-}
-
-
-  /// ✅ **Simulated Stored Employees with Face Embeddings**
-  List<Map<String, dynamic>> _getStoredEmployees() {
-    return [
-      {
-        'fullName': "John Doe",
-        'faceEmbeddings': List.generate(128, (index) => Random().nextDouble()), // Dummy embeddings
-      },
-      {
-        'fullName': "Jane Smith",
-        'faceEmbeddings': List.generate(128, (index) => Random().nextDouble()), // Dummy embeddings
+      if (distance < minDistance) {
+        minDistance = distance;
+        bestMatch = employee['fullName'];
       }
-    ];
+    }
+
+    // Check if the best match is within the threshold
+    if (minDistance > threshold) {
+      bestMatch = "No Match Found";
+    }
+
+    // Update the UI with the result
+    setState(() {
+      _resultMessage = "Best Match: $bestMatch\nShortest Distance: ${minDistance.toStringAsFixed(4)}";
+    });
+
+    if (bestMatch != "No Match Found") {
+      // Log the match in the database
+      await _logMatchedFace(bestMatch);
+    }
+  } catch (e) {
+    setState(() => _resultMessage = "Error accessing database: $e");
+    print("Error in _compareFace: $e");
+  }
+}
+
+  
+  Future<void> _logMatchedFace(String employeeName) async {
+    try {
+      await MongoDatabase.addMatchedRecord({
+        'employeeName': employeeName,
+        'timestamp': DateTime.now().toString(),
+      });
+      print('Face match recorded for $employeeName');
+    } catch (e) {
+      print('Error logging matched face: $e');
+    }
   }
 
-  /// ✅ **Handle No Face Detected**
   void _handleNoFaceDetected() {
     setState(() {
       _faceDetected = false;
