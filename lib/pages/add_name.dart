@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:face_recognition/config/mongoservice.dart';
 import 'dart:io';
 import '/pages/display.dart';
-import '/config/facerecognitionservice.dart';
+import '/config/facerecognitionservice.dart'; 
 import 'package:image/image.dart' as img;
+import 'package:google_ml_kit/google_ml_kit.dart';
 
 
 class TestAdd extends StatefulWidget {
@@ -99,7 +100,105 @@ Future<File> resizeImage(File imageFile) async {
   }
 
 
- Future<void> _submitForm() async {
+Future<File> cropFace(File imageFile) async {
+  final inputImage = InputImage.fromFilePath(imageFile.path);
+
+  // Initialize the face detector
+  final faceDetector = GoogleMlKit.vision.faceDetector(
+    FaceDetectorOptions(
+      enableContours: true,
+      enableClassification: true,
+      enableTracking: false,
+    ),
+  );
+
+  // Detect faces in the image
+  final List<Face> faces = await faceDetector.processImage(inputImage);
+
+  if (faces.isEmpty) {
+    throw Exception("No face detected");
+  }
+
+  // Get the bounding box for the first face
+  final face = faces[0];
+  final Rect boundingBox = face.boundingBox;
+
+  // Open the image file and decode it
+  final bytes = await imageFile.readAsBytes();
+  img.Image? image = img.decodeImage(bytes);
+
+  if (image == null) {
+    throw Exception("Error decoding image");
+  }
+
+  // Crop the face from the image using the bounding box
+  final croppedImage = img.copyCrop(
+    image,
+    boundingBox.left.toInt(),
+    boundingBox.top.toInt(),
+    boundingBox.width.toInt(),
+    boundingBox.height.toInt(),
+  );
+
+  // Save the cropped image
+  final croppedFile = File(imageFile.path.replaceFirst('.jpg', '_cropped.jpg'))
+    ..writeAsBytesSync(img.encodeJpg(croppedImage));
+
+  return croppedFile;
+}
+
+Future<File> cropAndResizeFace(File imageFile) async {
+  final inputImage = InputImage.fromFilePath(imageFile.path);
+
+  // Initialize the face detector
+  final faceDetector = GoogleMlKit.vision.faceDetector(
+    FaceDetectorOptions(
+      enableContours: true,
+      enableClassification: true,
+      enableTracking: false,
+    ),
+  );
+
+  // Detect faces in the image
+  final List<Face> faces = await faceDetector.processImage(inputImage);
+
+  if (faces.isEmpty) {
+    throw Exception("No face detected");
+  }
+
+  // Get the bounding box for the first face
+  final face = faces[0];
+  final Rect boundingBox = face.boundingBox;
+
+  // Open the image file and decode it
+  final bytes = await imageFile.readAsBytes();
+  img.Image? image = img.decodeImage(bytes);
+
+  if (image == null) {
+    throw Exception("Error decoding image");
+  }
+
+  // Crop the face from the image using the bounding box
+  final croppedImage = img.copyCrop(
+    image,
+    boundingBox.left.toInt(),
+    boundingBox.top.toInt(),
+    boundingBox.width.toInt(),
+    boundingBox.height.toInt(),
+  );
+
+  // Resize the cropped image to 112x112
+  img.Image resizedImage = img.copyResize(croppedImage, width: 112, height: 112);
+
+  // Save the resized cropped image
+  final croppedFile = File(imageFile.path.replaceFirst('.jpg', '_cropped_resized.jpg'))
+    ..writeAsBytesSync(img.encodeJpg(resizedImage));
+
+  return croppedFile;
+}
+
+
+Future<void> _submitForm() async {
   if (!_formKey.currentState!.validate()) return;
   if (capturedImagePath == null) {
     _showSnackBar("Please capture a face image");
@@ -107,33 +206,30 @@ Future<File> resizeImage(File imageFile) async {
   }
 
   try {
-    // Resize the captured image to 112x112 pixels
-    File resizedImageFile = await resizeImage(File(capturedImagePath!));
+    // Crop and resize the face from the captured image
+    File croppedResizedImageFile = await cropAndResizeFace(File(capturedImagePath!));
 
-    // Decode the resized image
-    final bytes = await resizedImageFile.readAsBytes();
-    img.Image? resizedImage = img.decodeImage(bytes);
+    // Decode the cropped and resized image
+    final bytes = await croppedResizedImageFile.readAsBytes();
+    img.Image? croppedResizedImage = img.decodeImage(bytes);
 
-    if (resizedImage == null) {
-      throw Exception("Error decoding resized image");
+    if (croppedResizedImage == null) {
+      throw Exception("Error decoding cropped and resized image");
     }
 
     // Convert image pixels to a normalized list of floats (RGB values between -1 and 1)
     List<double> imagePixels = [];
-    for (int y = 0; y < resizedImage.height; y++) {
-      for (int x = 0; x < resizedImage.width; x++) {
-        int pixel = resizedImage.getPixel(x, y);
-        imagePixels.add(((pixel >> 16) & 0xFF) / 255.0); // Red channel
-        imagePixels.add(((pixel >> 8) & 0xFF) / 255.0);  // Green channel
-        imagePixels.add((pixel & 0xFF) / 255.0);         // Blue channel
+    for (int y = 0; y < croppedResizedImage.height; y++) {
+      for (int x = 0; x < croppedResizedImage.width; x++) {
+        int pixel = croppedResizedImage.getPixel(x, y);
+        imagePixels.add((((pixel >> 16) & 0xFF) / 255.0 - 0.5) * 2.0); // Red
+        imagePixels.add((((pixel >> 8) & 0xFF) / 255.0 - 0.5) * 2.0);  // Green
+        imagePixels.add(((pixel & 0xFF) / 255.0 - 0.5) * 2.0);         // Blue
       }
     }
 
     // Debugging: Ensure the length of imagePixels is correct
-    print("Image Pixel Length: ${imagePixels.length}");
-    if (imagePixels.length != 112 * 112 * 3) {
-      throw Exception("Image pixel length mismatch. Expected: ${112 * 112 * 3}, but got: ${imagePixels.length}");
-    }
+    print("Cropped and Resized Image Pixel Length: ${imagePixels.length}");
 
     // Generate embeddings using the flat list of image pixels
     final faceEmbedding = faceRecognitionService.getFaceEmbeddingFromPixels(imagePixels);
@@ -153,7 +249,7 @@ Future<File> resizeImage(File imageFile) async {
     await MongoDatabase.insertData({
       'fullName': fullNameController.text,
       'employeeId': employeeId,
-      'imagePath': resizedImageFile.path,
+      'imagePath': croppedResizedImageFile.path,
       'faceEmbedding': faceEmbedding, // Store 192-d face embedding
       'timestamp': DateTime.now().toIso8601String(),
     });
@@ -169,7 +265,7 @@ Future<File> resizeImage(File imageFile) async {
     print("Error: $e");
   }
 }
- 
+
  
  
  
