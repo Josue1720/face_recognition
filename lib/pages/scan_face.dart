@@ -175,7 +175,7 @@ Future<void> _compareFace(List<double> detectedEmbedding) async {
 
     double minDistance = double.infinity;
     String bestMatch = "Unknown";
-    double threshold = 0.8; // Define a threshold for valid matching
+    double threshold = 0.15; // Define a threshold for valid matching
 
     for (var employee in storedEmployees) {
       List<dynamic>? storedEmbeddingRaw = employee['faceEmbedding'];
@@ -187,6 +187,7 @@ Future<void> _compareFace(List<double> detectedEmbedding) async {
       double distance = _calculateEuclideanDistance(detectedEmbedding, storedEmbedding);
 
       print("Distance for ${employee['fullName']}: $distance");
+      print(detectedEmbedding.length);
 
       if (distance < minDistance) {
         minDistance = distance;
@@ -244,10 +245,14 @@ Future<void> _compareFace(List<double> detectedEmbedding) async {
               children: [
                 Expanded(
                   child: Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()..scale(-1.0, 1.0),
-                    child: SmartFaceCamera(controller: _controller),
-                  ),
+                  alignment: Alignment.center,
+                  // Only flip the preview for the front camera
+                  transform: _controller.defaultCameraLens == CameraLens.front
+                      ? (Matrix4.identity()..scale(-1.0, 1.0))
+                      : Matrix4.identity(),
+                  child: SmartFaceCamera(controller: _controller),
+                ),
+
                 ),
                 const SizedBox(height: 20),
                 Text(

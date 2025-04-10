@@ -56,11 +56,6 @@ Future<File> resizeImage(File imageFile) async {
 
   return resizedFile;
 }
-
-
-
-
-
   Future<void> _initializeCamera(int cameraIndex) async {
     try {
       cameras = await availableCameras();
