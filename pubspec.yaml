@@ -18,24 +18,28 @@ dependencies:
   camera: ^0.11.1
   permission_handler: ^11.4.0
   google_ml_kit: ^0.19.0
-
+  json_annotation: ^4.9.0
+  mongo_dart: ^0.10.4
+  intl: ^0.20.2
+  face_camera: ^0.1.4
+  tensorflow_lite_flutter: ^2.0.1
+  path_provider: ^2.1.5
+  tflite_flutter: ^0.11.0
+  image: ^3.2.1
+ 
+ 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  build_runner: ^2.4.15
+  json_serializable: ^6.9.4
 
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter packages.
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/mobilefacenet.tflite
+
 
