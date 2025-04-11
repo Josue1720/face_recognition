@@ -194,19 +194,18 @@ Future<void> _compareFace(List<double> detectedEmbedding) async {
         bestMatch = employee['fullName'];
       }
     }
-
-    // Check if the best match is within the threshold
+//Checking Threshld
     if (minDistance > threshold) {
       bestMatch = "No Match Found";
     }
 
-    // Update the UI with the result
+    // display the best match
     setState(() {
       _resultMessage = "Best Match: $bestMatch\nShortest Distance: ${minDistance.toStringAsFixed(4)}";
     });
 
     if (bestMatch != "No Match Found") {
-      // Log the match in the database
+      //display match from database
       await _logMatchedFace(bestMatch);
     }
   } catch (e) {
@@ -238,7 +237,12 @@ Future<void> _compareFace(List<double> detectedEmbedding) async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Real-Time Face Recognition")),
+       appBar: AppBar(
+        title: const Text("Face Registration", style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF3D9260),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: _isCameraReady
           ? Column(
               mainAxisAlignment: MainAxisAlignment.center,

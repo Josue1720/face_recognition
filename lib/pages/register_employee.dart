@@ -9,14 +9,14 @@ import 'package:image/image.dart' as img;
 import 'package:google_ml_kit/google_ml_kit.dart';
 
 
-class TestAdd extends StatefulWidget {
-  const TestAdd({super.key});
+class RegisterUser extends StatefulWidget {
+  const RegisterUser({super.key});
 
   @override
-  State<TestAdd> createState() => _TestAddState();
+  State<RegisterUser> createState() => _TestAddState();
 }
 
-class _TestAddState extends State<TestAdd> {
+class _TestAddState extends State<RegisterUser> {
   final _formKey = GlobalKey<FormState>();
   final fullNameController = TextEditingController();
   final employeeIdController = TextEditingController();
@@ -98,7 +98,7 @@ Future<File> resizeImage(File imageFile) async {
 Future<File> cropFace(File imageFile) async {
   final inputImage = InputImage.fromFilePath(imageFile.path);
 
-  // Initialize the face detector
+  //Uses face detector
   final faceDetector = GoogleMlKit.vision.faceDetector(
     FaceDetectorOptions(
       enableContours: true,
@@ -107,7 +107,7 @@ Future<File> cropFace(File imageFile) async {
     ),
   );
 
-  // Detect faces in the image
+  //detect face in pciture
   final List<Face> faces = await faceDetector.processImage(inputImage);
 
   if (faces.isEmpty) {
@@ -201,7 +201,7 @@ Future<void> _submitForm() async {
   }
 
   try {
-    // Crop and resize the face from the captured image
+    // Crop imag
     File croppedResizedImageFile = await cropAndResizeFace(File(capturedImagePath!));
 
     // Decode the cropped and resized image
@@ -356,21 +356,34 @@ Future<void> _submitForm() async {
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (capturedImagePath == null)
-                    ElevatedButton.icon(
-                      onPressed: _captureImage,
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text("Capture Face"),
-                    ),
-                  const SizedBox(width: 10),
-                  if (capturedImagePath == null)
-                    ElevatedButton.icon(
-                      onPressed: _switchCamera,
-                      icon: const Icon(Icons.switch_camera),
-                      label: const Text("Switch"),
-                    ),
-                ],
+               children: [
+  if (capturedImagePath == null)
+    ElevatedButton.icon(
+      onPressed: _captureImage,
+      icon: const Icon(Icons.camera_alt, color: Colors.white),
+      label: const Text("Capture Face", style: TextStyle(color: Colors.white)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.green,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero, // rectangular
+        ),
+      ),
+    ),
+  const SizedBox(width: 10),
+  if (capturedImagePath == null)
+    ElevatedButton.icon(
+      onPressed: _switchCamera,
+      icon: const Icon(Icons.switch_camera, color: Colors.white),
+      label: const Text("Switch", style: TextStyle(color: Colors.white)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero, // rectangular
+        ),
+      ),
+    ),
+],
+
               ),
               const SizedBox(height: 10),
               if (capturedImagePath != null)

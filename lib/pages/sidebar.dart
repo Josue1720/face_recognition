@@ -1,4 +1,4 @@
-import 'package:face_recognition/pages/add_name.dart';
+import '/pages/register_employee.dart';
 import 'package:face_recognition/pages/display.dart';
 import 'package:flutter/material.dart';
 
@@ -29,7 +29,7 @@ class Sidebar extends StatelessWidget {
             onTap: () {
              Navigator.pushReplacement(
   context,
-  MaterialPageRoute(builder: (context) => TestAdd()),
+  MaterialPageRoute(builder: (context) => RegisterUser()),
 );
 
             },

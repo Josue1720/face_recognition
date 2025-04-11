@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '/pages/scan_face.dart';
-import '/pages/add_name.dart';
+import '/pages/register_employee.dart';
 import '/pages/display.dart';
 
 class Homepage extends StatefulWidget {
@@ -45,7 +45,7 @@ class _HomepageState extends State<Homepage> {
                         // Handle Add card tap
                      Navigator.push(
   context,
-  MaterialPageRoute(builder: (context) => TestAdd()),
+  MaterialPageRoute(builder: (context) => RegisterUser()),
 );
                       },
                     ),

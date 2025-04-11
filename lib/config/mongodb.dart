@@ -1,14 +1,14 @@
 import 'dart:developer';
 
-import 'package:face_recognition/config/constant.dart';
+
 import'package:mongo_dart/mongo_dart.dart';
 
 class MongoDatabase{
   static var db, userCollection;
   static connect() async{
-    db = await Db.create(MONGO_CONN_URL);
+    db = await Db.create("mongodb://172.22.11.240:27017/employee_data");
     await db.open();
     inspect(db);
-    userCollection = db.collection(USER_COLLECTION);
+    userCollection = db.collection("employees");
   }
 }
