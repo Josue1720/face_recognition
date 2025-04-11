@@ -1,7 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'dart:io'; // Import the dart:io package
-import 'dart:math' as math;
 class AddPerson extends StatefulWidget {
   const AddPerson({super.key});
 
